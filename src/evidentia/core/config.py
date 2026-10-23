@@ -105,6 +105,12 @@ class RetrievalSettings(BaseModel):
     max_expansion_terms: int = 12
 
 
+class TravelSettings(BaseModel):
+    guide_ttl_days: int = 180
+    stale_generation_minutes: int = 15
+    recovery_interval_s: int = 600
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="EVIDENTIA_",
@@ -131,6 +137,7 @@ class Settings(BaseSettings):
     knowledge: KnowledgeSettings = Field(default_factory=KnowledgeSettings)
     cards: CardsSettings = Field(default_factory=CardsSettings)
     retrieval: RetrievalSettings = Field(default_factory=RetrievalSettings)
+    travel: TravelSettings = Field(default_factory=TravelSettings)
 
     @model_validator(mode="after")
     def _guard_production_secrets(self) -> Settings:
