@@ -15,9 +15,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from evidentia.ai.factory import build_gateway
 from evidentia.ai.gateway import AIGateway
 from evidentia.ai.prompts import PromptRegistry, PromptSpec
+from evidentia.ai.telemetry import LLMTelemetry
 from evidentia.core.config import Settings
 from evidentia.core.crypto import SecretBox
 from evidentia.core.errors import NotFoundError
+from evidentia.core.metrics import prometheus_sink
 from evidentia.modules.admin.models import PromptOverride, SystemSetting
 from evidentia.modules.assistant.prompting import ASSISTANT
 from evidentia.modules.audit.models import record_audit
@@ -287,7 +289,9 @@ class CachedGatewaySource:
             return self._gateway
         key = await SettingsStore(session, self.settings, self.box).get("llm.openai_api_key")
         if self._gateway is None or key != self._key:
-            self._gateway = build_gateway(self.settings.llm, api_key=key)
+            # Shared across requests: mirror to Prometheus but keep no records in memory.
+            telemetry = LLMTelemetry([prometheus_sink], keep_records=False)
+            self._gateway = build_gateway(self.settings.llm, api_key=key, telemetry=telemetry)
             self._key = key
         self._fresh_until = now + self.ttl_s
         return self._gateway
