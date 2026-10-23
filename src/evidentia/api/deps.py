@@ -10,6 +10,7 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from evidentia.ai.gateway import AIGateway
+from evidentia.ai.source import GatewaySource
 from evidentia.core.config import Settings
 from evidentia.db.session import Database
 from evidentia.integrations.storage import ObjectStorage
@@ -35,11 +36,6 @@ def get_storage(request: Request) -> ObjectStorage:
     return storage
 
 
-def get_ai_gateway(request: Request) -> AIGateway:
-    gateway: AIGateway = request.app.state.ai
-    return gateway
-
-
 async def get_session(
     db: Annotated[Database, Depends(get_database)],
 ) -> AsyncIterator[AsyncSession]:
@@ -49,6 +45,13 @@ async def get_session(
 
 SettingsDep = Annotated[Settings, Depends(get_app_settings)]
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
+
+
+async def get_ai_gateway(request: Request, session: SessionDep) -> AIGateway:
+    source: GatewaySource = request.app.state.ai
+    return await source.get(session)
+
+
 RedisDep = Annotated[Redis, Depends(get_redis)]
 StorageDep = Annotated[ObjectStorage, Depends(get_storage)]
 AIGatewayDep = Annotated[AIGateway, Depends(get_ai_gateway)]
