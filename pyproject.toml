@@ -10,7 +10,33 @@ dependencies = [
     "pydantic>=2.14",
     "pydantic-settings>=2.16",
     "structlog>=26.1",
+    "sqlalchemy[asyncio]>=2.1",
+    "asyncpg>=0.32",
+    "alembic>=1.20",
+    "pyjwt>=2.15",
+    "pwdlib[argon2]>=0.3",
+    "email-validator>=2.3",
+    "openai>=3.37",
+    "tiktoken>=0.14",
+    "celery[redis]>=5.6",
+    "redis>=8.1",
+    "pypdf>=6.21",
+    "boto3>=1.43",
+    "pgvector>=0.5",
+    "rapidfuzz>=3.14",
+    "httpx>=0.28",
+    "airportsdata>=20260905",
+    "cryptography>=50.0",
+    "prometheus-client>=0.26",
+    "opentelemetry-api>=1.45",
+    "opentelemetry-sdk>=1.45",
+    "opentelemetry-exporter-otlp-proto-http>=1.45",
+    "opentelemetry-instrumentation-fastapi>=0.66b1",
+    "mcp>=2.3",
 ]
+
+[project.scripts]
+evidentia = "evidentia.cli:main"
 
 [dependency-groups]
 dev = [
@@ -20,6 +46,8 @@ dev = [
     "httpx>=0.28",
     "ruff>=0.17",
     "mypy>=2.4",
+    "celery-types>=0.26",
+    "pre-commit>=4.3",
 ]
 
 [build-system]
@@ -35,7 +63,7 @@ target-version = "py312"
 src = ["src", "tests"]
 
 [tool.ruff.lint]
-select = ["E", "W", "F", "I", "B", "UP", "N", "S", "ASYNC", "C4", "SIM", "RUF", "PL", "PT", "TID"]
+select = ["E", "W", "F", "I", "B", "BLE", "UP", "N", "S", "ASYNC", "C4", "SIM", "RUF", "PL", "PT", "TID"]
 ignore = ["PLR0913", "PLR2004", "PLR0911", "PLR0912", "S101"]
 
 [tool.ruff.lint.per-file-ignores]
@@ -50,6 +78,10 @@ strict = true
 plugins = ["pydantic.mypy"]
 mypy_path = "src"
 warn_unused_ignores = true
+
+[[tool.mypy.overrides]]
+module = ["boto3", "boto3.*", "botocore", "botocore.*"]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
