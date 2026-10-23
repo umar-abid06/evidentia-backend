@@ -6,7 +6,7 @@ from enum import StrEnum
 from typing import Any
 
 from sqlalchemy import ForeignKey, Index, String, UniqueConstraint
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column
 
 from evidentia.db.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
 from evidentia.db.types import str_enum
@@ -58,8 +58,6 @@ class Trip(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     health_guide_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("health_guides.id", ondelete="SET NULL")
     )
-
-    health_guide: Mapped[HealthGuide | None] = relationship(lazy="joined")
 
 
 class JetLagPlan(UUIDPrimaryKeyMixin, TimestampMixin, Base):
