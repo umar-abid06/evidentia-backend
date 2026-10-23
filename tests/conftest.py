@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+from typing import Any
 
 import pytest
 from fastapi import FastAPI
@@ -10,9 +12,20 @@ from evidentia.core.config import Settings
 from evidentia.main import create_app
 
 
+class _NoDatabaseSession:
+    """Stands in for AsyncSession in unit tests; any real use fails loudly."""
+
+    def __getattr__(self, name: str) -> Any:
+        raise AssertionError(f"unit test touched the database (session.{name})")
+
+
 class _HealthyDatabase:
     async def ping(self) -> None:
         return None
+
+    @asynccontextmanager
+    async def session(self) -> AsyncIterator[Any]:
+        yield _NoDatabaseSession()
 
     async def dispose(self) -> None:
         return None

@@ -28,8 +28,10 @@ class AppError(Exception):
         *,
         code: str | None = None,
         extra: dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,
     ) -> None:
         self.detail = detail or self.title
+        self.headers = headers
         if code:
             self.code = code
         self.extra = extra or {}
@@ -46,6 +48,9 @@ class UnauthorizedError(AppError):
     status_code = status.HTTP_401_UNAUTHORIZED
     code = "unauthorized"
     title = "Authentication required"
+
+    def __init__(self, detail: str | None = None, *, code: str | None = None) -> None:
+        super().__init__(detail, code=code, headers={"WWW-Authenticate": "Bearer"})
 
 
 class ForbiddenError(AppError):
@@ -98,6 +103,7 @@ def _problem(
     detail: str,
     code: str,
     extra: dict[str, Any] | None = None,
+    headers: dict[str, str] | None = None,
 ) -> JSONResponse:
     body: dict[str, Any] = {
         "type": f"about:blank#{code}",
@@ -110,7 +116,7 @@ def _problem(
     }
     if extra:
         body.update(extra)
-    return JSONResponse(body, status_code=status_code, media_type=PROBLEM_JSON)
+    return JSONResponse(body, status_code=status_code, media_type=PROBLEM_JSON, headers=headers)
 
 
 def register_exception_handlers(app: FastAPI) -> None:
@@ -125,6 +131,7 @@ def register_exception_handlers(app: FastAPI) -> None:
             detail=exc.detail,
             code=exc.code,
             extra=exc.extra,
+            headers=exc.headers,
         )
 
     @app.exception_handler(RequestValidationError)
