@@ -16,9 +16,10 @@ from evidentia.modules.extraction.schemas import CoverageRecord
 from evidentia.modules.knowledge.models import CoverageTranslation, PolicyVersion
 from evidentia.modules.knowledge.publisher import KnowledgePublisher
 from evidentia.modules.knowledge.translation import CoverageTranslator, customer_view, view_hash
+from evidentia.modules.notifications.events import for_version
 from evidentia.workers.celery_app import celery_app
 from evidentia.workers.names import PUBLISH_POLICY_VERSION, TRANSLATE_COVERAGE
-from evidentia.workers.runtime import WorkerContext, run_job
+from evidentia.workers.runtime import WorkerContext, notifier, run_job
 
 RETRY_COUNTDOWNS = (30, 60, 120)
 
@@ -31,7 +32,13 @@ async def _publish(ctx: WorkerContext, version_id: uuid.UUID) -> None:
             embedding_version=ctx.settings.llm.embedding_version,
             batch_size=ctx.settings.knowledge.embed_batch_size,
         )
-        await publisher.publish(version_id)
+        try:
+            await publisher.publish(version_id)
+        finally:
+            version = await session.get(PolicyVersion, version_id, populate_existing=True)
+            if version is not None:
+                async with notifier(ctx.settings) as notify:
+                    await notify.publish(for_version(version))
 
 
 @celery_app.task(name=PUBLISH_POLICY_VERSION, bind=True, acks_late=True, max_retries=3)
