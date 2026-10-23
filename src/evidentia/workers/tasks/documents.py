@@ -8,6 +8,7 @@ from evidentia.integrations.storage import build_storage
 from evidentia.modules.documents.processing import DocumentProcessor
 from evidentia.modules.documents.text import PdfTextExtractor
 from evidentia.modules.extraction.pipeline import ExtractionPipeline
+from evidentia.modules.knowledge.auto_publish import AutoPublisher
 from evidentia.workers.celery_app import celery_app
 from evidentia.workers.names import PROCESS_DOCUMENT
 from evidentia.workers.runtime import WorkerContext, run_job
@@ -24,7 +25,11 @@ async def _process(ctx: WorkerContext, document_id: uuid.UUID) -> None:
             confidence_threshold=settings.ingestion.review_confidence_threshold,
         )
         processor = DocumentProcessor(
-            session, build_storage(settings.storage), PdfTextExtractor(), pipeline
+            session,
+            build_storage(settings.storage),
+            PdfTextExtractor(),
+            pipeline,
+            after_extraction=AutoPublisher(session),
         )
         await processor.run(document_id)
 

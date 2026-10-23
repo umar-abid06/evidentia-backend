@@ -198,3 +198,14 @@ async def test_gather_limited_caps_concurrency_and_keeps_order() -> None:
     results = await gather_limited([job(i) for i in range(20)], limit=6)
     assert results == list(range(20))
     assert peak <= 6
+
+
+async def test_gather_limited_surfaces_the_original_error() -> None:
+    async def ok() -> int:
+        return 1
+
+    async def broken() -> int:
+        raise ProviderRequestError("bad chunk")
+
+    with pytest.raises(ProviderRequestError, match="bad chunk"):
+        await gather_limited([ok, broken, ok], limit=2)
