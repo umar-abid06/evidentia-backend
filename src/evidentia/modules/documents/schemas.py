@@ -62,6 +62,7 @@ class DocumentDetail(DocumentRead):
     extraction_model: str | None
     extraction: dict[str, Any] | None
     conflicts: list[Any]
+    report: dict[str, Any] | None
 
 
 class PageRead(BaseModel):
