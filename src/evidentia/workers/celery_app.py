@@ -15,7 +15,7 @@ from evidentia.core.logging import configure_logging
 from evidentia.db.registry import load_models
 from evidentia.workers.names import QUEUES
 
-TASK_MODULES: list[str] = []  # extended as task modules are added
+TASK_MODULES: list[str] = ["evidentia.workers.tasks.documents"]
 
 
 def create_celery(settings: Settings) -> Celery:

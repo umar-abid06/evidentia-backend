@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from redis.asyncio import Redis
 
 from evidentia import __version__
+from evidentia.ai.factory import build_gateway
 from evidentia.api import health
 from evidentia.api.router import build_api_router
 from evidentia.core.config import Settings, get_settings
@@ -19,6 +20,7 @@ from evidentia.core.logging import configure_logging
 from evidentia.core.middleware import RequestContextMiddleware
 from evidentia.core.tasks import CeleryDispatcher, set_dispatcher
 from evidentia.db.session import Database
+from evidentia.integrations.storage import build_storage
 
 log = structlog.get_logger(__name__)
 
@@ -31,6 +33,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.db = Database(settings.database)
         app.state.redis = Redis.from_url(settings.redis.url, decode_responses=True)
+        app.state.storage = build_storage(settings.storage)
+        app.state.ai = build_gateway(settings.llm)
         set_dispatcher(CeleryDispatcher())
         log.info("startup", environment=settings.environment, version=__version__)
         try:

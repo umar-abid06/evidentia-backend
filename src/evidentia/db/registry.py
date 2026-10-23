@@ -11,6 +11,7 @@ from evidentia.db.base import Base
 MODEL_MODULES: tuple[str, ...] = (
     "evidentia.modules.auth.models",
     "evidentia.modules.catalog.models",
+    "evidentia.modules.documents.models",
 )
 
 
