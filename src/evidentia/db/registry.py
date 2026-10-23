@@ -8,7 +8,10 @@ from sqlalchemy import MetaData
 
 from evidentia.db.base import Base
 
-MODEL_MODULES: tuple[str, ...] = ("evidentia.modules.auth.models",)
+MODEL_MODULES: tuple[str, ...] = (
+    "evidentia.modules.auth.models",
+    "evidentia.modules.catalog.models",
+)
 
 
 def load_models() -> MetaData:
