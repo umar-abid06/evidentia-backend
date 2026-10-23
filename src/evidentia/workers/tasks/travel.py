@@ -11,10 +11,9 @@ from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from evidentia.ai.errors import AIError
-from evidentia.ai.factory import build_gateway
-from evidentia.ai.prompts import PromptRegistry
 from evidentia.core.i18n import as_language
 from evidentia.core.tasks import TaskCall, enqueue
+from evidentia.modules.admin.store import prompt_registry, resolve_gateway
 from evidentia.modules.knowledge.translation import CoverageTranslator
 from evidentia.modules.travel.generation import (
     GUIDE_TRANSLATABLE_KEYS,
@@ -86,8 +85,8 @@ async def _generate_guide(ctx: WorkerContext, guide_id: uuid.UUID) -> None:
 
 
 async def _fill_guide(ctx: WorkerContext, session: AsyncSession, guide: HealthGuide) -> None:
-    gateway = build_gateway(ctx.settings.llm)
-    registry = PromptRegistry()
+    gateway = await resolve_gateway(session, ctx.settings)
+    registry = prompt_registry(session)
     if guide.language == "en":
         content, prompt_version = await generate_health_guide(
             gateway, registry, country=guide.country_code, region=guide.region_code
@@ -163,10 +162,10 @@ async def _generate_plan(ctx: WorkerContext, plan_id: uuid.UUID) -> None:
         plan.status = GenerationStatus.GENERATING
         plan.attempts += 1
         await session.commit()
-        gateway = build_gateway(ctx.settings.llm)
+        gateway = await resolve_gateway(session, ctx.settings)
         try:
             content = await generate_jetlag_plan(
-                gateway, PromptRegistry(), JetLagMetrics.model_validate(plan.metrics)
+                gateway, prompt_registry(session), JetLagMetrics.model_validate(plan.metrics)
             )
         except Exception as exc:
             plan.status = GenerationStatus.FAILED
