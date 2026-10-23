@@ -8,8 +8,10 @@ import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
-from evidentia.core.config import Settings
+from evidentia.ai.factory import build_gateway
+from evidentia.core.config import LLMSettings, Settings
 from evidentia.core.tasks import RecordingDispatcher, set_dispatcher
+from evidentia.integrations.storage import InMemoryStorage
 from evidentia.main import create_app
 
 
@@ -46,14 +48,26 @@ def dispatcher() -> RecordingDispatcher:
 
 @pytest.fixture
 def settings() -> Settings:
-    return Settings(environment="test", log_json=False, log_level="WARNING")
+    return Settings(
+        environment="test",
+        log_json=False,
+        log_level="WARNING",
+        llm=LLMSettings(provider="fake"),
+    )
 
 
 @pytest.fixture
-def app(settings: Settings) -> FastAPI:
+def storage() -> InMemoryStorage:
+    return InMemoryStorage()
+
+
+@pytest.fixture
+def app(settings: Settings, storage: InMemoryStorage) -> FastAPI:
     application = create_app(settings)
     application.state.db = _HealthyDatabase()
     application.state.redis = _HealthyRedis()
+    application.state.storage = storage
+    application.state.ai = build_gateway(settings.llm)
     return application
 
 

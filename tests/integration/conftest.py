@@ -13,10 +13,12 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
 
+from evidentia.ai.factory import build_gateway
 from evidentia.core.config import DatabaseSettings, Settings
 from evidentia.core.security import create_token, hash_password
 from evidentia.db.registry import load_models
 from evidentia.db.session import Database
+from evidentia.integrations.storage import InMemoryStorage
 from evidentia.main import create_app
 from evidentia.modules.auth.models import User, UserRole
 
@@ -47,10 +49,14 @@ async def db(database_url: str) -> AsyncIterator[Database]:
 
 
 @pytest.fixture
-async def api(settings: Settings, db: Database) -> AsyncIterator[AsyncClient]:
+async def api(
+    settings: Settings, db: Database, storage: InMemoryStorage
+) -> AsyncIterator[AsyncClient]:
     application = create_app(settings)
     application.state.db = db
     application.state.redis = _NullRedis()
+    application.state.storage = storage
+    application.state.ai = build_gateway(settings.llm)
     async with AsyncClient(
         transport=ASGITransport(app=application), base_url="http://test"
     ) as http:
