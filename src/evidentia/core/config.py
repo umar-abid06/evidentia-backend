@@ -50,6 +50,16 @@ class LLMSettings(BaseModel):
     max_parallel_calls: int = 6
 
 
+class RedisSettings(BaseModel):
+    url: str = "redis://localhost:6379/0"
+    broker_url: str | None = None
+
+
+class WorkerSettings(BaseModel):
+    soft_time_limit_s: int = 1500
+    hard_time_limit_s: int = 1800
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="EVIDENTIA_",
@@ -69,6 +79,8 @@ class Settings(BaseSettings):
     database: DatabaseSettings = Field(default_factory=DatabaseSettings)
     auth: AuthSettings = Field(default_factory=AuthSettings)
     llm: LLMSettings = Field(default_factory=LLMSettings)
+    redis: RedisSettings = Field(default_factory=RedisSettings)
+    workers: WorkerSettings = Field(default_factory=WorkerSettings)
 
     @model_validator(mode="after")
     def _guard_production_secrets(self) -> Settings:

@@ -9,6 +9,7 @@ from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
 from evidentia.core.config import Settings
+from evidentia.core.tasks import RecordingDispatcher, set_dispatcher
 from evidentia.main import create_app
 
 
@@ -31,6 +32,18 @@ class _HealthyDatabase:
         return None
 
 
+class _HealthyRedis:
+    async def ping(self) -> bool:
+        return True
+
+
+@pytest.fixture(autouse=True)
+def dispatcher() -> RecordingDispatcher:
+    recorder = RecordingDispatcher()
+    set_dispatcher(recorder)
+    return recorder
+
+
 @pytest.fixture
 def settings() -> Settings:
     return Settings(environment="test", log_json=False, log_level="WARNING")
@@ -40,6 +53,7 @@ def settings() -> Settings:
 def app(settings: Settings) -> FastAPI:
     application = create_app(settings)
     application.state.db = _HealthyDatabase()
+    application.state.redis = _HealthyRedis()
     return application
 
 

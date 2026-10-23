@@ -21,6 +21,11 @@ from evidentia.main import create_app
 from evidentia.modules.auth.models import User, UserRole
 
 
+class _NullRedis:
+    async def ping(self) -> bool:
+        return True
+
+
 @pytest.fixture(scope="session")
 def database_url() -> str:
     url = os.getenv("TEST_DATABASE_URL")
@@ -45,6 +50,7 @@ async def db(database_url: str) -> AsyncIterator[Database]:
 async def api(settings: Settings, db: Database) -> AsyncIterator[AsyncClient]:
     application = create_app(settings)
     application.state.db = db
+    application.state.redis = _NullRedis()
     async with AsyncClient(
         transport=ASGITransport(app=application), base_url="http://test"
     ) as http:

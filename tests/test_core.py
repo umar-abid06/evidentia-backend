@@ -16,7 +16,7 @@ async def test_liveness(client: AsyncClient) -> None:
 async def test_readiness_reports_each_check(client: AsyncClient) -> None:
     response = await client.get("/readyz")
     assert response.status_code == 200
-    assert response.json() == {"status": "ready", "checks": {"database": "ok"}}
+    assert response.json() == {"status": "ready", "checks": {"database": "ok", "redis": "ok"}}
 
 
 async def test_readiness_degrades_when_a_dependency_fails(

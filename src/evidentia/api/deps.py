@@ -6,6 +6,7 @@ from collections.abc import AsyncIterator
 from typing import Annotated
 
 from fastapi import Depends, Request
+from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from evidentia.core.config import Settings
@@ -22,6 +23,11 @@ def get_database(request: Request) -> Database:
     return db
 
 
+def get_redis(request: Request) -> Redis:
+    redis: Redis = request.app.state.redis
+    return redis
+
+
 async def get_session(
     db: Annotated[Database, Depends(get_database)],
 ) -> AsyncIterator[AsyncSession]:
@@ -31,3 +37,4 @@ async def get_session(
 
 SettingsDep = Annotated[Settings, Depends(get_app_settings)]
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
+RedisDep = Annotated[Redis, Depends(get_redis)]
