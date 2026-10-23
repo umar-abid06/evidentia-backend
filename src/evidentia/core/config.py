@@ -82,6 +82,13 @@ class IngestionSettings(BaseModel):
     review_confidence_threshold: float = 0.80
 
 
+class KnowledgeSettings(BaseModel):
+    embed_batch_size: int = 100
+    translation_batch_tokens: int = 6000
+    translation_parallelism: int = 6
+    translation_retries: int = 2
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="EVIDENTIA_",
@@ -105,6 +112,7 @@ class Settings(BaseSettings):
     workers: WorkerSettings = Field(default_factory=WorkerSettings)
     storage: StorageSettings = Field(default_factory=StorageSettings)
     ingestion: IngestionSettings = Field(default_factory=IngestionSettings)
+    knowledge: KnowledgeSettings = Field(default_factory=KnowledgeSettings)
 
     @model_validator(mode="after")
     def _guard_production_secrets(self) -> Settings:

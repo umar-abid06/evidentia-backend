@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import uuid
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from typing import Any
 
@@ -26,7 +27,13 @@ from evidentia.modules.documents.text import (
     UnreadableDocumentError,
     is_scanned,
 )
-from evidentia.modules.extraction.pipeline import ExtractionMode, ExtractionPipeline
+from evidentia.modules.extraction.pipeline import (
+    ExtractionMode,
+    ExtractionOutcome,
+    ExtractionPipeline,
+)
+
+AfterExtraction = Callable[[Document, ExtractionOutcome], Awaitable[None]]
 
 log = structlog.get_logger(__name__)
 
@@ -46,11 +53,13 @@ class DocumentProcessor:
         storage: ObjectStorage,
         extractor: TextExtractor,
         pipeline: ExtractionPipeline | None = None,
+        after_extraction: AfterExtraction | None = None,
     ) -> None:
         self.session = session
         self.storage = storage
         self.extractor = extractor
         self.pipeline = pipeline
+        self.after_extraction = after_extraction
 
     async def run(self, document_id: uuid.UUID) -> Document | None:
         document = await self.session.get(Document, document_id)
@@ -134,6 +143,8 @@ class DocumentProcessor:
                 **outcome.stats,
                 "telemetry": telemetry.model_dump(mode="json"),
             }
+            if self.after_extraction is not None:
+                await self.after_extraction(document, outcome)
         document.status = DocumentStatus.COMPLETED
         document.processed_at = datetime.now(UTC)
         await self.session.commit()
