@@ -21,6 +21,7 @@ dependencies = [
     "redis>=8.1",
     "pypdf>=6.21",
     "boto3>=1.43",
+    "pgvector>=0.5",
 ]
 
 [project.scripts]
