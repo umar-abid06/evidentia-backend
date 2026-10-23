@@ -42,7 +42,7 @@ class TravelService:
         result = await self.session.scalars(
             select(Trip).where(Trip.user_id == user.id).order_by(Trip.start_date)
         )
-        return list(result.unique())
+        return list(result)
 
     async def get_trip(self, user: User, trip_id: uuid.UUID) -> Trip:
         trip = await self.session.get(Trip, trip_id)
@@ -67,9 +67,15 @@ class TravelService:
 
     async def trip_guide(self, user: User, trip_id: uuid.UUID, language: Language) -> GuideView:
         trip = await self.get_trip(user, trip_id)
-        current = trip.health_guide or await self.ensure_guide(
-            trip.destination_country, trip.destination_region
+        # Loaded explicitly: async sessions must never fall back to lazy loading.
+        current = (
+            await self.session.get(HealthGuide, trip.health_guide_id)
+            if trip.health_guide_id
+            else None
         )
+        if current is None:
+            current = await self.ensure_guide(trip.destination_country, trip.destination_region)
+            trip.health_guide_id = current.id
         newest = await self._latest(
             trip.destination_country, trip.destination_region, "en", ready_only=True
         )
@@ -92,7 +98,6 @@ class TravelService:
         )
         if newest is not None:
             trip.health_guide_id = newest.id
-            trip.health_guide = newest
         await self.session.commit()
         return trip
 
