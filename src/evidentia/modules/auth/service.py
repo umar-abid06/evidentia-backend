@@ -9,8 +9,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from evidentia.core.config import AuthSettings
 from evidentia.core.errors import ConflictError, NotFoundError, UnauthorizedError
 from evidentia.core.security import create_token, decode_token, hash_password, verify_password
+from evidentia.core.tasks import enqueue_after_commit
 from evidentia.modules.auth.models import User, UserRole
 from evidentia.modules.auth.schemas import RegisterRequest, TokenPair, UserUpdate
+from evidentia.workers.names import SYNC_CRM_CONTACT
 
 
 class AuthService:
@@ -31,6 +33,8 @@ class AuthService:
             preferred_language=data.preferred_language,
         )
         self.session.add(user)
+        await self.session.flush()
+        enqueue_after_commit(self.session, SYNC_CRM_CONTACT, str(user.id))
         await self.session.commit()
         return user
 
@@ -60,6 +64,7 @@ class AuthService:
     async def update_profile(self, user: User, data: UserUpdate) -> User:
         for field, value in data.model_dump(exclude_unset=True).items():
             setattr(user, field, value)
+        enqueue_after_commit(self.session, SYNC_CRM_CONTACT, str(user.id))
         await self.session.commit()
         return user
 

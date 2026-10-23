@@ -19,6 +19,7 @@ TASK_MODULES: list[str] = [
     "evidentia.workers.tasks.documents",
     "evidentia.workers.tasks.knowledge",
     "evidentia.workers.tasks.travel",
+    "evidentia.workers.tasks.integrations",
 ]
 
 
