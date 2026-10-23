@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from dataclasses import asdict, dataclass
+from dataclasses import asdict
 from datetime import UTC, datetime
 from typing import Any
 
@@ -32,21 +32,10 @@ from evidentia.modules.cards.models import (
     UserCard,
 )
 from evidentia.modules.cards.schemas import AddCardRequest, CandidateCard, IdentifyResult
+from evidentia.modules.cards.scope import ScopedPolicy, resolve_policy_scope
 from evidentia.modules.catalog.models import CardProduct, Policy
-from evidentia.modules.knowledge.models import PolicyVersion, VersionStatus
 from evidentia.modules.knowledge.schemas import CoverageView
 from evidentia.modules.knowledge.service import KnowledgeService
-
-
-@dataclass(frozen=True, slots=True)
-class ScopedPolicy:
-    """A policy the signed-in customer holds, with its customer-facing names."""
-
-    policy_id: uuid.UUID
-    version_id: uuid.UUID
-    policy_name: str
-    card_id: uuid.UUID
-    card_name: str
 
 
 def _candidate(product: CardProduct, confidence: float) -> CandidateCard:
@@ -222,39 +211,7 @@ class CardService:
     async def policy_scope(
         self, user: User, *, card_id: uuid.UUID | None = None
     ) -> list[ScopedPolicy]:
-        """Resolves the customer's policies before any search can run."""
-        query = (
-            select(UserCard.id, CardProduct.display_name, Policy, PolicyVersion.id)
-            .join(CardProduct, CardProduct.id == UserCard.card_product_id)
-            .join(Policy, Policy.id == CardProduct.policy_id)
-            .join(
-                PolicyVersion,
-                (PolicyVersion.policy_id == Policy.id)
-                & (PolicyVersion.status == VersionStatus.READY),
-            )
-            .where(
-                UserCard.user_id == user.id,
-                UserCard.is_active.is_(True),
-                CardProduct.is_active.is_(True),
-                Policy.is_active.is_(True),
-            )
-            .order_by(UserCard.created_at)
-        )
-        if card_id is not None:
-            query = query.where(UserCard.id == card_id)
-        scoped: dict[uuid.UUID, ScopedPolicy] = {}
-        for card, card_name, policy, version_id in (await self.session.execute(query)).all():
-            scoped.setdefault(
-                policy.id,
-                ScopedPolicy(
-                    policy_id=policy.id,
-                    version_id=version_id,
-                    policy_name=policy.display_name,
-                    card_id=card,
-                    card_name=card_name,
-                ),
-            )
-        return list(scoped.values())
+        return await resolve_policy_scope(self.session, user.id, card_id=card_id)
 
     async def list_reviews(self, params: PageParams, status: BinReviewStatus) -> Page[Any]:
         query = select(BinReview).where(BinReview.status == status).order_by(BinReview.created_at)
