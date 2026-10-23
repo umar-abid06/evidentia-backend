@@ -2,9 +2,8 @@ from __future__ import annotations
 
 import uuid
 
-from evidentia.ai.factory import build_gateway
-from evidentia.ai.prompts import PromptRegistry
 from evidentia.integrations.storage import build_storage
+from evidentia.modules.admin.store import prompt_registry, resolve_gateway
 from evidentia.modules.documents.processing import DocumentProcessor
 from evidentia.modules.documents.text import PdfTextExtractor
 from evidentia.modules.extraction.pipeline import ExtractionPipeline
@@ -19,8 +18,8 @@ async def _process(ctx: WorkerContext, document_id: uuid.UUID) -> None:
     settings = ctx.settings
     async with ctx.db.session() as session:
         pipeline = ExtractionPipeline(
-            build_gateway(settings.llm),
-            PromptRegistry(),
+            await resolve_gateway(session, settings),
+            prompt_registry(session),
             chunk_chars=settings.ingestion.reading_chunk_chars,
             parallelism=settings.llm.max_parallel_calls,
             confidence_threshold=settings.ingestion.review_confidence_threshold,

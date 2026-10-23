@@ -111,6 +111,17 @@ class TravelSettings(BaseModel):
     recovery_interval_s: int = 600
 
 
+class SecuritySettings(BaseModel):
+    encryption_keys: list[SecretStr] = Field(
+        default_factory=list, description="Fernet keys; the first encrypts, all decrypt."
+    )
+
+
+class CrmSettings(BaseModel):
+    webhook_url: str | None = None
+    api_key: SecretStr | None = None
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="EVIDENTIA_",
@@ -138,6 +149,8 @@ class Settings(BaseSettings):
     cards: CardsSettings = Field(default_factory=CardsSettings)
     retrieval: RetrievalSettings = Field(default_factory=RetrievalSettings)
     travel: TravelSettings = Field(default_factory=TravelSettings)
+    security: SecuritySettings = Field(default_factory=SecuritySettings)
+    crm: CrmSettings = Field(default_factory=CrmSettings)
 
     @model_validator(mode="after")
     def _guard_production_secrets(self) -> Settings:
@@ -145,6 +158,8 @@ class Settings(BaseSettings):
             secret = self.auth.jwt_secret.get_secret_value()
             if secret == _DEV_JWT_SECRET or len(secret) < 32:
                 raise ValueError("EVIDENTIA_AUTH__JWT_SECRET must be set to 32+ characters")
+            if not self.security.encryption_keys:
+                raise ValueError("EVIDENTIA_SECURITY__ENCRYPTION_KEYS must hold a Fernet key")
         return self
 
     @property

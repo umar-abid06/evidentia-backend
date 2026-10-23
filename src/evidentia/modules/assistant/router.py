@@ -5,8 +5,8 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 
-from evidentia.ai.prompts import PromptRegistry
 from evidentia.api.deps import AIGatewayDep, SessionDep, SettingsDep
+from evidentia.modules.admin.store import prompt_registry
 from evidentia.modules.assistant.engine import AnswerEngine
 from evidentia.modules.assistant.retrieval import PgVectorRetriever
 from evidentia.modules.assistant.schemas import AskRequest, AskResponse
@@ -24,7 +24,7 @@ def get_answer_engine(session: SessionDep, settings: SettingsDep, ai: AIGatewayD
         embedding_model=ai.embeddings.model,
         embedding_version=settings.llm.embedding_version,
     )
-    return AnswerEngine(ai, PromptRegistry(), retriever, scope, settings.retrieval)
+    return AnswerEngine(ai, prompt_registry(session), retriever, scope, settings.retrieval)
 
 
 EngineDep = Annotated[AnswerEngine, Depends(get_answer_engine)]

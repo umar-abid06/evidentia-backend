@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
+from evidentia.modules.admin.router import router as admin_router
 from evidentia.modules.assistant.router import router as assistant_router
 from evidentia.modules.auth.router import router as auth_router
 from evidentia.modules.cards.router import admin_router as cards_admin_router
@@ -25,5 +26,6 @@ def build_api_router(prefix: str) -> APIRouter:
     api.include_router(cards_admin_router)
     api.include_router(assistant_router)
     api.include_router(travel_router)
+    api.include_router(admin_router)
     api.include_router(notifications_router)
     return api

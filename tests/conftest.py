@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any
@@ -9,6 +10,7 @@ from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
 from evidentia.ai.factory import build_gateway
+from evidentia.ai.source import StaticGatewaySource
 from evidentia.core.config import LLMSettings, Settings
 from evidentia.core.tasks import RecordingDispatcher, set_dispatcher
 from evidentia.integrations.storage import InMemoryStorage
@@ -40,6 +42,15 @@ class _HealthyRedis:
 
 
 @pytest.fixture(autouse=True)
+def _isolated_settings(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Tests never read a developer's .env file or EVIDENTIA_* variables."""
+    monkeypatch.setitem(Settings.model_config, "env_file", None)
+    for name in list(os.environ):
+        if name.startswith("EVIDENTIA_"):
+            monkeypatch.delenv(name)
+
+
+@pytest.fixture(autouse=True)
 def dispatcher() -> RecordingDispatcher:
     recorder = RecordingDispatcher()
     set_dispatcher(recorder)
@@ -67,7 +78,7 @@ def app(settings: Settings, storage: InMemoryStorage) -> FastAPI:
     application.state.db = _HealthyDatabase()
     application.state.redis = _HealthyRedis()
     application.state.storage = storage
-    application.state.ai = build_gateway(settings.llm)
+    application.state.ai = StaticGatewaySource(build_gateway(settings.llm))
     return application
 
 

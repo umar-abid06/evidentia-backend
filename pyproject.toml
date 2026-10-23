@@ -25,6 +25,7 @@ dependencies = [
     "rapidfuzz>=3.14",
     "httpx>=0.28",
     "airportsdata>=20260905",
+    "cryptography>=50.0",
 ]
 
 [project.scripts]

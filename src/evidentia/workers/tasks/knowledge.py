@@ -8,9 +8,8 @@ from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 
 from evidentia.ai.errors import AIError
-from evidentia.ai.factory import build_gateway
-from evidentia.ai.prompts import PromptRegistry
 from evidentia.core.i18n import Language
+from evidentia.modules.admin.store import prompt_registry, resolve_gateway
 from evidentia.modules.catalog.models import Policy
 from evidentia.modules.extraction.schemas import CoverageRecord
 from evidentia.modules.knowledge.models import CoverageTranslation, PolicyVersion
@@ -28,7 +27,7 @@ async def _publish(ctx: WorkerContext, version_id: uuid.UUID) -> None:
     async with ctx.db.session() as session:
         publisher = KnowledgePublisher(
             session,
-            build_gateway(ctx.settings.llm),
+            await resolve_gateway(session, ctx.settings),
             embedding_version=ctx.settings.llm.embedding_version,
             batch_size=ctx.settings.knowledge.embed_batch_size,
         )
@@ -62,8 +61,8 @@ async def _translate(ctx: WorkerContext, version_id: uuid.UUID, language: Langua
         view = customer_view(CoverageRecord.model_validate(version.record), policy_label=label)
         settings = ctx.settings.knowledge
         translator = CoverageTranslator(
-            build_gateway(ctx.settings.llm),
-            PromptRegistry(),
+            await resolve_gateway(session, ctx.settings),
+            prompt_registry(session),
             batch_tokens=settings.translation_batch_tokens,
             parallelism=settings.translation_parallelism,
             retries=settings.translation_retries,

@@ -12,7 +12,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from redis.asyncio import Redis
 
 from evidentia import __version__
-from evidentia.ai.factory import build_gateway
 from evidentia.api import health
 from evidentia.api.router import build_api_router
 from evidentia.core.config import Settings, get_settings
@@ -23,6 +22,7 @@ from evidentia.core.tasks import CeleryDispatcher, set_dispatcher
 from evidentia.db.session import Database
 from evidentia.integrations.bin_lookup import build_bin_lookup
 from evidentia.integrations.storage import build_storage
+from evidentia.modules.admin.store import CachedGatewaySource
 from evidentia.modules.notifications.hub import NotificationHub
 
 log = structlog.get_logger(__name__)
@@ -37,7 +37,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.db = Database(settings.database)
         app.state.redis = Redis.from_url(settings.redis.url, decode_responses=True)
         app.state.storage = build_storage(settings.storage)
-        app.state.ai = build_gateway(settings.llm)
+        app.state.ai = CachedGatewaySource(settings)
         app.state.http = httpx.AsyncClient(timeout=10.0)
         app.state.bin_lookup = build_bin_lookup(settings.cards, app.state.http)
         app.state.notifications = NotificationHub(app.state.redis)
