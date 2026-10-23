@@ -47,6 +47,7 @@ dev = [
     "ruff>=0.17",
     "mypy>=2.4",
     "celery-types>=0.26",
+    "pre-commit>=4.3",
 ]
 
 [build-system]
