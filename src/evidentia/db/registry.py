@@ -15,6 +15,7 @@ MODEL_MODULES: tuple[str, ...] = (
     "evidentia.modules.knowledge.models",
     "evidentia.modules.audit.models",
     "evidentia.modules.cards.models",
+    "evidentia.modules.travel.models",
 )
 
 
