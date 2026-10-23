@@ -129,6 +129,13 @@ class ObservabilitySettings(BaseModel):
     trace_sample_ratio: float = Field(default=1.0, ge=0.0, le=1.0)
 
 
+class McpSettings(BaseModel):
+    enabled: bool = False
+    service_token: SecretStr | None = Field(
+        default=None, description="Bearer token agents present to /mcp/."
+    )
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="EVIDENTIA_",
@@ -159,6 +166,7 @@ class Settings(BaseSettings):
     security: SecuritySettings = Field(default_factory=SecuritySettings)
     crm: CrmSettings = Field(default_factory=CrmSettings)
     observability: ObservabilitySettings = Field(default_factory=ObservabilitySettings)
+    mcp: McpSettings = Field(default_factory=McpSettings)
 
     @model_validator(mode="after")
     def _guard_production_secrets(self) -> Settings:
@@ -168,6 +176,10 @@ class Settings(BaseSettings):
                 raise ValueError("EVIDENTIA_AUTH__JWT_SECRET must be set to 32+ characters")
             if not self.security.encryption_keys:
                 raise ValueError("EVIDENTIA_SECURITY__ENCRYPTION_KEYS must hold a Fernet key")
+        if self.mcp.enabled:
+            token = self.mcp.service_token.get_secret_value() if self.mcp.service_token else ""
+            if len(token) < 32:
+                raise ValueError("EVIDENTIA_MCP__SERVICE_TOKEN must be 32+ characters")
         return self
 
     @property
