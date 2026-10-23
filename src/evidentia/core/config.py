@@ -95,6 +95,16 @@ class CardsSettings(BaseModel):
     bin_lookup_timeout_s: float = 5.0
 
 
+class RetrievalSettings(BaseModel):
+    similarity_floor: float = 0.45
+    relaxed_floor: float = 0.40
+    candidates_per_policy: int = 40
+    max_candidates: int = 120
+    max_chunks_per_policy: int = 5
+    max_chunks_total: int = 15
+    max_expansion_terms: int = 12
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="EVIDENTIA_",
@@ -120,6 +130,7 @@ class Settings(BaseSettings):
     ingestion: IngestionSettings = Field(default_factory=IngestionSettings)
     knowledge: KnowledgeSettings = Field(default_factory=KnowledgeSettings)
     cards: CardsSettings = Field(default_factory=CardsSettings)
+    retrieval: RetrievalSettings = Field(default_factory=RetrievalSettings)
 
     @model_validator(mode="after")
     def _guard_production_secrets(self) -> Settings:
