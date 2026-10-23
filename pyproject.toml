@@ -12,7 +12,13 @@ dependencies = [
     "structlog>=26.1",
     "sqlalchemy[asyncio]>=2.1",
     "asyncpg>=0.32",
+    "pyjwt>=2.15",
+    "pwdlib[argon2]>=0.3",
+    "email-validator>=2.3",
 ]
+
+[project.scripts]
+evidentia = "evidentia.cli:main"
 
 [dependency-groups]
 dev = [
