@@ -60,6 +60,28 @@ class WorkerSettings(BaseModel):
     hard_time_limit_s: int = 1800
 
 
+class StorageSettings(BaseModel):
+    backend: Literal["s3", "memory"] = "s3"
+    bucket: str = "evidentia-documents"
+    region: str = "eu-central-1"
+    endpoint_url: str | None = None
+    public_endpoint_url: str | None = None
+    access_key_id: str | None = None
+    secret_access_key: SecretStr | None = None
+    presign_ttl_s: int = 900
+    max_upload_mb: int = 50
+
+    @property
+    def max_upload_bytes(self) -> int:
+        return self.max_upload_mb * 1024 * 1024
+
+
+class IngestionSettings(BaseModel):
+    max_queue_depth: int = 50
+    reading_chunk_chars: int = 18_000
+    review_confidence_threshold: float = 0.80
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="EVIDENTIA_",
@@ -81,6 +103,8 @@ class Settings(BaseSettings):
     llm: LLMSettings = Field(default_factory=LLMSettings)
     redis: RedisSettings = Field(default_factory=RedisSettings)
     workers: WorkerSettings = Field(default_factory=WorkerSettings)
+    storage: StorageSettings = Field(default_factory=StorageSettings)
+    ingestion: IngestionSettings = Field(default_factory=IngestionSettings)
 
     @model_validator(mode="after")
     def _guard_production_secrets(self) -> Settings:
