@@ -9,6 +9,7 @@ from evidentia.modules.documents.text import PdfTextExtractor
 from evidentia.modules.extraction.pipeline import ExtractionPipeline
 from evidentia.modules.knowledge.auto_publish import AutoPublisher
 from evidentia.modules.notifications.events import for_document
+from evidentia.modules.ops.service import save_calls
 from evidentia.workers.celery_app import celery_app
 from evidentia.workers.names import PROCESS_DOCUMENT
 from evidentia.workers.runtime import WorkerContext, notifier, run_job
@@ -31,7 +32,10 @@ async def _process(ctx: WorkerContext, document_id: uuid.UUID) -> None:
             pipeline,
             after_extraction=AutoPublisher(session),
         )
-        document = await processor.run(document_id)
+        try:
+            document = await processor.run(document_id)
+        finally:
+            await save_calls(session, pipeline.gateway.telemetry.records, document_id=document_id)
     if document is not None:
         async with notifier(settings) as notify:
             await notify.publish(for_document(document))

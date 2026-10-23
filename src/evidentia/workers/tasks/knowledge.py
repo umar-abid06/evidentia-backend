@@ -16,6 +16,7 @@ from evidentia.modules.knowledge.models import CoverageTranslation, PolicyVersio
 from evidentia.modules.knowledge.publisher import KnowledgePublisher
 from evidentia.modules.knowledge.translation import CoverageTranslator, customer_view, view_hash
 from evidentia.modules.notifications.events import for_version
+from evidentia.modules.ops.service import save_calls
 from evidentia.workers.celery_app import celery_app
 from evidentia.workers.names import PUBLISH_POLICY_VERSION, TRANSLATE_COVERAGE
 from evidentia.workers.runtime import WorkerContext, notifier, run_job
@@ -34,6 +35,7 @@ async def _publish(ctx: WorkerContext, version_id: uuid.UUID) -> None:
         try:
             await publisher.publish(version_id)
         finally:
+            await save_calls(session, publisher.gateway.telemetry.records, version_id=version_id)
             version = await session.get(PolicyVersion, version_id, populate_existing=True)
             if version is not None:
                 async with notifier(ctx.settings) as notify:
@@ -68,7 +70,10 @@ async def _translate(ctx: WorkerContext, version_id: uuid.UUID, language: Langua
             retries=settings.translation_retries,
         )
         protected = [label] + ([policy.insurer_name] if policy else [])
-        payload = await translator.translate(view, language, protected=protected)
+        try:
+            payload = await translator.translate(view, language, protected=protected)
+        finally:
+            await save_calls(session, translator.gateway.telemetry.records, version_id=version_id)
         statement = insert(CoverageTranslation).values(
             policy_version_id=version_id,
             language=language,

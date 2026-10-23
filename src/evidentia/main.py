@@ -17,8 +17,10 @@ from evidentia.api.router import build_api_router
 from evidentia.core.config import Settings, get_settings
 from evidentia.core.errors import register_exception_handlers
 from evidentia.core.logging import configure_logging
+from evidentia.core.metrics import metrics_app
 from evidentia.core.middleware import RequestContextMiddleware
 from evidentia.core.tasks import CeleryDispatcher, set_dispatcher
+from evidentia.core.tracing import instrument_app
 from evidentia.db.session import Database
 from evidentia.integrations.bin_lookup import build_bin_lookup
 from evidentia.integrations.storage import build_storage
@@ -77,4 +79,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     register_exception_handlers(app)
     app.include_router(health.router)
     app.include_router(build_api_router(settings.api_prefix))
+    if settings.observability.metrics_enabled:
+        app.mount("/metrics", metrics_app())
+    instrument_app(app, settings.observability, environment=settings.environment)
     return app

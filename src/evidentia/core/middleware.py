@@ -8,6 +8,8 @@ import uuid
 import structlog
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from evidentia.core.metrics import observe_http
+
 REQUEST_ID_HEADER = b"x-request-id"
 
 log = structlog.get_logger("evidentia.access")
@@ -51,12 +53,16 @@ class RequestContextMiddleware:
             await self.app(scope, receive, send_wrapper)
         finally:
             if scope["type"] == "http":
-                route = scope.get("route")
+                elapsed = time.perf_counter() - started
+                route = getattr(scope.get("route"), "path", None)
+                method = str(scope.get("method"))
+                # Route templates (not raw paths) keep metric cardinality bounded.
+                observe_http(method, route or "unmatched", status_code, elapsed)
                 log.info(
                     "request",
-                    method=scope.get("method"),
-                    route=getattr(route, "path", scope.get("path")),
+                    method=method,
+                    route=route or scope.get("path"),
                     status=status_code,
-                    duration_ms=round((time.perf_counter() - started) * 1000, 2),
+                    duration_ms=round(elapsed * 1000, 2),
                 )
             structlog.contextvars.clear_contextvars()

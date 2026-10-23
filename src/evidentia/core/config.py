@@ -122,6 +122,13 @@ class CrmSettings(BaseModel):
     api_key: SecretStr | None = None
 
 
+class ObservabilitySettings(BaseModel):
+    metrics_enabled: bool = True
+    otlp_endpoint: str | None = Field(default=None, description="e.g. http://otel-collector:4318")
+    service_name: str = "evidentia-api"
+    trace_sample_ratio: float = Field(default=1.0, ge=0.0, le=1.0)
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="EVIDENTIA_",
@@ -151,6 +158,7 @@ class Settings(BaseSettings):
     travel: TravelSettings = Field(default_factory=TravelSettings)
     security: SecuritySettings = Field(default_factory=SecuritySettings)
     crm: CrmSettings = Field(default_factory=CrmSettings)
+    observability: ObservabilitySettings = Field(default_factory=ObservabilitySettings)
 
     @model_validator(mode="after")
     def _guard_production_secrets(self) -> Settings:

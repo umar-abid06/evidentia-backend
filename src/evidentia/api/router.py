@@ -13,6 +13,7 @@ from evidentia.modules.catalog.router import router as catalog_router
 from evidentia.modules.documents.router import router as documents_router
 from evidentia.modules.knowledge.router import router as knowledge_router
 from evidentia.modules.notifications.router import router as notifications_router
+from evidentia.modules.ops.router import router as ops_router
 from evidentia.modules.travel.router import router as travel_router
 
 
@@ -27,5 +28,6 @@ def build_api_router(prefix: str) -> APIRouter:
     api.include_router(assistant_router)
     api.include_router(travel_router)
     api.include_router(admin_router)
+    api.include_router(ops_router)
     api.include_router(notifications_router)
     return api

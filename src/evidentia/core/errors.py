@@ -10,6 +10,13 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from evidentia.ai.errors import (
+    AIError,
+    ModelOutputError,
+    ProviderAuthError,
+    ProviderNotConfiguredError,
+)
+
 PROBLEM_JSON = "application/problem+json"
 
 log = structlog.get_logger(__name__)
@@ -157,6 +164,31 @@ def register_exception_handlers(app: FastAPI) -> None:
             title=str(exc.detail),
             detail=str(exc.detail),
             code=f"http_{exc.status_code}",
+        )
+
+    @app.exception_handler(AIError)
+    async def _ai_error(request: Request, exc: AIError) -> JSONResponse:
+        """Typed model failures become clear, non-leaky API errors."""
+        if isinstance(exc, ProviderNotConfiguredError | ProviderAuthError):
+            status_code, code, title = (
+                503,
+                "model_provider_unavailable",
+                "Model provider unavailable",
+            )
+        elif isinstance(exc, ModelOutputError):
+            status_code, code, title = 502, "model_output_invalid", "Model returned invalid output"
+        elif exc.transient:
+            status_code, code, title = 503, "model_busy", "Model provider is busy"
+        else:
+            status_code, code, title = 502, "model_request_failed", "Model request failed"
+        log.warning("ai_error", error_type=type(exc).__name__, attempts=exc.attempts)
+        return _problem(
+            request,
+            status_code=status_code,
+            title=title,
+            detail="The assistant could not complete this request. Please try again shortly.",
+            code=code,
+            headers={"Retry-After": "5"} if status_code == 503 else None,
         )
 
     @app.exception_handler(Exception)
