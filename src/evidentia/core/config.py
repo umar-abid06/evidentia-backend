@@ -33,6 +33,23 @@ class AuthSettings(BaseModel):
     refresh_ttl_days: int = 14
 
 
+class LLMSettings(BaseModel):
+    """Model routing. ``fake`` runs fully offline with deterministic adapters."""
+
+    provider: Literal["openai", "fake"] = "openai"
+    openai_api_key: SecretStr | None = None
+    openai_base_url: str | None = None
+    reasoning_model: str = "gpt-5.4"
+    chat_model: str = "gpt-5-mini"
+    embedding_model: str = "text-embedding-3-small"
+    embedding_dimensions: int = 1536
+    embedding_version: str = "1"
+    reasoning_timeout_s: float = 180.0
+    chat_timeout_s: float = 30.0
+    retry_delays_s: tuple[float, ...] = (1.0, 2.0, 4.0)
+    max_parallel_calls: int = 6
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="EVIDENTIA_",
@@ -51,6 +68,7 @@ class Settings(BaseSettings):
 
     database: DatabaseSettings = Field(default_factory=DatabaseSettings)
     auth: AuthSettings = Field(default_factory=AuthSettings)
+    llm: LLMSettings = Field(default_factory=LLMSettings)
 
     @model_validator(mode="after")
     def _guard_production_secrets(self) -> Settings:
