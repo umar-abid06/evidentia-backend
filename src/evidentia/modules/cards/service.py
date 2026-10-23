@@ -202,7 +202,8 @@ class CardService:
 
     async def coverage(self, user: User, card_id: uuid.UUID, language: Language) -> CoverageView:
         card = await self.get_card(user, card_id)
-        policy_id = card.card_product.policy_id
+        product = await self.session.get(CardProduct, card.card_product_id)
+        policy_id = product.policy_id if product else None
         policy = await self.session.get(Policy, policy_id) if policy_id else None
         if policy is None or not policy.is_active:
             raise NotFoundError("This card has no coverage on file.", code="coverage_not_found")
