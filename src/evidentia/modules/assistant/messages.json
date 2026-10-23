@@ -1,0 +1,46 @@
+{
+  "en": {
+    "no_policies": "There is no card with published coverage in your wallet yet. Add a card to ask about its coverage.",
+    "clarify": "Which benefit would you like to know more about?",
+    "clarify_examples": "Which benefit would you like to know more about? For example: {examples}.",
+    "not_covered": "Your policy documents don't mention this.",
+    "not_covered_topic": "Your policy documents don't mention {topic}.",
+    "off_topic": "I can only answer questions about the travel insurance that comes with your cards."
+  },
+  "de": {
+    "no_policies": "In Ihrer Wallet ist noch keine Karte mit veröffentlichtem Versicherungsschutz. Fügen Sie eine Karte hinzu, um Fragen zu deren Leistungen zu stellen.",
+    "clarify": "Zu welcher Leistung möchten Sie mehr wissen?",
+    "not_covered": "Ihre Versicherungsunterlagen erwähnen dies nicht.",
+    "off_topic": "Ich kann nur Fragen zum Reiseversicherungsschutz Ihrer Karten beantworten."
+  },
+  "fr": {
+    "no_policies": "Aucune carte avec une couverture publiée ne figure encore dans votre portefeuille. Ajoutez une carte pour poser des questions sur sa couverture.",
+    "clarify": "Sur quelle garantie souhaitez-vous en savoir plus ?",
+    "not_covered": "Vos documents d'assurance ne le mentionnent pas.",
+    "off_topic": "Je ne peux répondre qu'aux questions sur l'assurance voyage incluse avec vos cartes."
+  },
+  "es": {
+    "no_policies": "Todavía no hay ninguna tarjeta con cobertura publicada en su cartera. Añada una tarjeta para preguntar por su cobertura.",
+    "clarify": "¿Sobre qué prestación desea saber más?",
+    "not_covered": "Sus documentos de seguro no lo mencionan.",
+    "off_topic": "Solo puedo responder preguntas sobre el seguro de viaje incluido con sus tarjetas."
+  },
+  "ar": {
+    "no_policies": "لا توجد بعد أي بطاقة ذات تغطية منشورة في محفظتك. أضف بطاقة لتسأل عن تغطيتها.",
+    "clarify": "ما المزية التي تود معرفة المزيد عنها؟",
+    "not_covered": "لا تذكر وثائق التأمين الخاصة بك ذلك.",
+    "off_topic": "يمكنني فقط الإجابة عن الأسئلة المتعلقة بتأمين السفر المرفق ببطاقاتك."
+  },
+  "ur": {
+    "no_policies": "آپ کے والٹ میں ابھی تک کوئی ایسا کارڈ نہیں جس کی کوریج شائع ہو چکی ہو۔ کوریج کے بارے میں پوچھنے کے لیے کارڈ شامل کریں۔",
+    "clarify": "آپ کس فائدے کے بارے میں مزید جاننا چاہیں گے؟",
+    "not_covered": "آپ کی انشورنس دستاویزات میں اس کا ذکر نہیں ہے۔",
+    "off_topic": "میں صرف آپ کے کارڈز کے ساتھ ملنے والی سفری انشورنس کے بارے میں سوالات کے جواب دے سکتا ہوں۔"
+  },
+  "zh": {
+    "no_policies": "您的钱包中还没有已发布保障信息的卡片。请添加卡片后再询问其保障内容。",
+    "clarify": "您想进一步了解哪项保障？",
+    "not_covered": "您的保险文件中没有提及这一点。",
+    "off_topic": "我只能回答与您卡片附带的旅行保险相关的问题。"
+  }
+}
