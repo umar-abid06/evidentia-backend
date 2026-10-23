@@ -13,11 +13,12 @@ from celery.signals import setup_logging, worker_process_init
 from evidentia.core.config import Settings, get_settings
 from evidentia.core.logging import configure_logging
 from evidentia.db.registry import load_models
-from evidentia.workers.names import QUEUES
+from evidentia.workers.names import QUEUES, RECOVER_HEALTH_GUIDES
 
 TASK_MODULES: list[str] = [
     "evidentia.workers.tasks.documents",
     "evidentia.workers.tasks.knowledge",
+    "evidentia.workers.tasks.travel",
 ]
 
 
@@ -40,7 +41,12 @@ def create_celery(settings: Settings) -> Celery:
         task_soft_time_limit=settings.workers.soft_time_limit_s,
         task_time_limit=settings.workers.hard_time_limit_s,
         timezone="UTC",
-        beat_schedule={},
+        beat_schedule={
+            "recover-health-guides": {
+                "task": RECOVER_HEALTH_GUIDES,
+                "schedule": float(settings.travel.recovery_interval_s),
+            },
+        },
     )
     return app
 

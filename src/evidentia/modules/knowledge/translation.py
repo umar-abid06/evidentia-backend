@@ -89,18 +89,25 @@ def view_hash(view: dict[str, Any]) -> str:
     return hashlib.sha256(json.dumps(view, sort_keys=True).encode()).hexdigest()
 
 
-def collect_leaves(payload: Any, path: str = "") -> dict[str, str]:
+def collect_leaves(
+    payload: Any, path: str = "", *, keys: frozenset[str] = TRANSLATABLE_KEYS
+) -> dict[str, str]:
+    """Flattens translatable text into ``{path: text}``; lists of strings count too."""
     leaves: dict[str, str] = {}
     if isinstance(payload, dict):
         for key, value in payload.items():
             child = f"{path}.{key}" if path else key
-            if key in TRANSLATABLE_KEYS and isinstance(value, str) and value.strip():
+            if key in keys and isinstance(value, str) and value.strip():
                 leaves[child] = value
+            elif key in keys and isinstance(value, list):
+                for index, item in enumerate(value):
+                    if isinstance(item, str) and item.strip():
+                        leaves[f"{child}.{index}"] = item
             elif isinstance(value, dict | list):
-                leaves.update(collect_leaves(value, child))
+                leaves.update(collect_leaves(value, child, keys=keys))
     elif isinstance(payload, list):
         for index, value in enumerate(payload):
-            leaves.update(collect_leaves(value, f"{path}.{index}"))
+            leaves.update(collect_leaves(value, f"{path}.{index}", keys=keys))
     return leaves
 
 
@@ -140,12 +147,14 @@ class CoverageTranslator:
         batch_tokens: int = 6000,
         parallelism: int = 6,
         retries: int = 2,
+        keys: frozenset[str] = TRANSLATABLE_KEYS,
     ) -> None:
         self.gateway = gateway
         self.registry = registry
         self.batch_tokens = batch_tokens
         self.parallelism = parallelism
         self.retries = retries
+        self.keys = keys
 
     async def translate(
         self, payload: dict[str, Any], language: Language, *, protected: list[str]
@@ -158,7 +167,7 @@ class CoverageTranslator:
             f"Protected names (copy verbatim): {', '.join(protected) or 'none'}.\n"
             f"{TRANSLATOR_CONTRACT}"
         )
-        batches = token_batches(collect_leaves(payload), budget=self.batch_tokens)
+        batches = token_batches(collect_leaves(payload, keys=self.keys), budget=self.batch_tokens)
 
         def job(batch: dict[str, str]) -> Callable[[], Awaitable[dict[str, str]]]:
             return lambda: self._translate_batch(prompt, contract=contract, batch=batch)
