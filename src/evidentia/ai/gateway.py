@@ -3,9 +3,13 @@
 from __future__ import annotations
 
 import asyncio
+import copy
 import time
 from collections.abc import Awaitable, Callable, Sequence
 from typing import Any
+
+from opentelemetry import trace
+from opentelemetry.trace import Status, StatusCode
 
 from evidentia.ai.errors import AIError, ProviderNotConfiguredError
 from evidentia.ai.retry import DEFAULT_DELAYS, retry_transient
@@ -20,6 +24,8 @@ from evidentia.ai.types import (
     EmbeddingResult,
     ModelTier,
 )
+
+_tracer = trace.get_tracer("evidentia.ai")
 
 
 class AIGateway:
@@ -55,18 +61,35 @@ class AIGateway:
     def model_for(self, tier: ModelTier) -> str:
         return self._tiers[tier].default_model
 
+    def with_telemetry(self, telemetry: LLMTelemetry) -> AIGateway:
+        """Same adapters, separate telemetry: one unit of work, one set of records."""
+        clone = copy.copy(self)
+        clone.telemetry = telemetry
+        return clone
+
     async def chat(self, request: ChatRequest, *, tier: ModelTier) -> ChatResult:
         self._ensure_configured()
         backend = self._tiers[tier]
         model = request.model or backend.default_model
         started = time.perf_counter()
-        try:
-            result, retries = await retry_transient(
-                lambda: backend.complete(request), delays=self._delays, sleep=self._sleep
-            )
-        except AIError as exc:
-            self._record(request.stage, model, started, request.payload_bytes, exc=exc)
-            raise
+        with _tracer.start_as_current_span(f"llm {request.stage}") as span:
+            span.set_attribute("gen_ai.operation.name", "chat")
+            span.set_attribute("gen_ai.request.model", model)
+            span.set_attribute("evidentia.llm.stage", request.stage)
+            span.set_attribute("evidentia.llm.tier", tier)
+            try:
+                result, retries = await retry_transient(
+                    lambda: backend.complete(request), delays=self._delays, sleep=self._sleep
+                )
+            except AIError as exc:
+                span.record_exception(exc)
+                span.set_status(Status(StatusCode.ERROR, type(exc).__name__))
+                self._record(request.stage, model, started, request.payload_bytes, exc=exc)
+                raise
+            span.set_attribute("gen_ai.response.model", result.model)
+            span.set_attribute("gen_ai.usage.input_tokens", result.prompt_tokens)
+            span.set_attribute("gen_ai.usage.output_tokens", result.completion_tokens)
+            span.set_attribute("evidentia.llm.retries", retries)
         self._record(
             request.stage,
             result.model,
@@ -115,13 +138,20 @@ class AIGateway:
         self._ensure_configured()
         payload = sum(len(text.encode()) for text in texts)
         started = time.perf_counter()
-        try:
-            result, retries = await retry_transient(
-                lambda: self.embeddings.embed(texts), delays=self._delays, sleep=self._sleep
-            )
-        except AIError as exc:
-            self._record(stage, self.embeddings.model, started, payload, exc=exc)
-            raise
+        with _tracer.start_as_current_span(f"llm {stage}") as span:
+            span.set_attribute("gen_ai.operation.name", "embeddings")
+            span.set_attribute("gen_ai.request.model", self.embeddings.model)
+            span.set_attribute("evidentia.llm.batch_size", len(texts))
+            try:
+                result, retries = await retry_transient(
+                    lambda: self.embeddings.embed(texts), delays=self._delays, sleep=self._sleep
+                )
+            except AIError as exc:
+                span.record_exception(exc)
+                span.set_status(Status(StatusCode.ERROR, type(exc).__name__))
+                self._record(stage, self.embeddings.model, started, payload, exc=exc)
+                raise
+            span.set_attribute("gen_ai.usage.input_tokens", result.prompt_tokens)
         self._record(
             stage,
             result.model,

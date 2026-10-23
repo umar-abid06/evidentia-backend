@@ -109,15 +109,17 @@ def build_report(records: Iterable[LLMCallRecord], *, pages: int | None = None) 
 class LLMTelemetry:
     """Collects call records for one unit of work and fans them out to sinks."""
 
-    def __init__(self, sinks: Sequence[TelemetrySink] = ()) -> None:
+    def __init__(self, sinks: Sequence[TelemetrySink] = (), *, keep_records: bool = True) -> None:
         self.records: list[LLMCallRecord] = []
         self._sinks = list(sinks)
+        self._keep = keep_records
 
     def add_sink(self, sink: TelemetrySink) -> None:
         self._sinks.append(sink)
 
     def record(self, record: LLMCallRecord) -> None:
-        self.records.append(record)
+        if self._keep:
+            self.records.append(record)
         payload = asdict(record)
         payload.pop("created_at")
         log.info("llm_call", **payload)
