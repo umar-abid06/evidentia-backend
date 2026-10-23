@@ -23,6 +23,7 @@ from evidentia.core.tasks import CeleryDispatcher, set_dispatcher
 from evidentia.db.session import Database
 from evidentia.integrations.bin_lookup import build_bin_lookup
 from evidentia.integrations.storage import build_storage
+from evidentia.modules.notifications.hub import NotificationHub
 
 log = structlog.get_logger(__name__)
 
@@ -39,11 +40,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.ai = build_gateway(settings.llm)
         app.state.http = httpx.AsyncClient(timeout=10.0)
         app.state.bin_lookup = build_bin_lookup(settings.cards, app.state.http)
+        app.state.notifications = NotificationHub(app.state.redis)
+        app.state.notifications.start()
         set_dispatcher(CeleryDispatcher())
         log.info("startup", environment=settings.environment, version=__version__)
         try:
             yield
         finally:
+            await app.state.notifications.stop()
             await app.state.http.aclose()
             await app.state.redis.aclose()
             await app.state.db.dispose()

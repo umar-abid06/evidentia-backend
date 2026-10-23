@@ -8,10 +8,12 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 
 import structlog
+from redis.asyncio import Redis
 
 from evidentia.core.config import Settings, get_settings
 from evidentia.db.registry import load_models
 from evidentia.db.session import Database
+from evidentia.modules.notifications.events import Notifier, RedisNotifier
 
 
 @dataclass(slots=True)
@@ -30,6 +32,15 @@ async def worker_context() -> AsyncIterator[WorkerContext]:
         yield WorkerContext(settings=settings, db=db)
     finally:
         await db.dispose()
+
+
+@asynccontextmanager
+async def notifier(settings: Settings) -> AsyncIterator[Notifier]:
+    redis = Redis.from_url(settings.redis.url, decode_responses=True)
+    try:
+        yield RedisNotifier(redis)
+    finally:
+        await redis.aclose()
 
 
 def run_job[T](job: Callable[[WorkerContext], Awaitable[T]], **log_context: object) -> T:
