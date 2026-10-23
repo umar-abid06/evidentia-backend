@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Literal, get_args
+from typing import Literal, TypeGuard, get_args
 
 Language = Literal["en", "fr", "de", "es", "ar", "ur", "zh"]
 
@@ -18,3 +18,11 @@ LANGUAGE_NAMES: dict[Language, str] = {
     "ur": "Urdu",
     "zh": "Chinese (Simplified)",
 }
+
+
+def is_language(value: object) -> TypeGuard[Language]:
+    return value in SUPPORTED_LANGUAGES
+
+
+def as_language(value: object, default: Language = PIVOT_LANGUAGE) -> Language:
+    return value if is_language(value) else default
