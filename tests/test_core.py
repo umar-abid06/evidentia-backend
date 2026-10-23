@@ -71,3 +71,22 @@ async def test_openapi_mounts_every_module(client: AsyncClient) -> None:
         "/api/v1/admin/prompts/{key}",
     ):
         assert path in paths, path
+
+
+async def test_model_failures_map_to_clear_errors(app: FastAPI, client: AsyncClient) -> None:
+    from evidentia.ai.errors import MalformedJSONError, ProviderRateLimitedError
+
+    @app.get("/busy")
+    async def busy() -> None:
+        raise ProviderRateLimitedError("429 from provider with secret details")
+
+    @app.get("/garbled")
+    async def garbled() -> None:
+        raise MalformedJSONError("bad", preview="{")
+
+    busy_response = await client.get("/busy")
+    assert busy_response.status_code == 503
+    assert busy_response.json()["code"] == "model_busy"
+    assert "secret" not in busy_response.text
+    assert busy_response.headers["retry-after"] == "5"
+    assert (await client.get("/garbled")).json()["code"] == "model_output_invalid"
