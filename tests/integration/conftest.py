@@ -14,9 +14,11 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
 
 from evidentia.core.config import DatabaseSettings, Settings
+from evidentia.core.security import create_token, hash_password
 from evidentia.db.registry import load_models
 from evidentia.db.session import Database
 from evidentia.main import create_app
+from evidentia.modules.auth.models import User, UserRole
 
 
 @pytest.fixture(scope="session")
@@ -47,3 +49,27 @@ async def api(settings: Settings, db: Database) -> AsyncIterator[AsyncClient]:
         transport=ASGITransport(app=application), base_url="http://test"
     ) as http:
         yield http
+
+
+async def _user_headers(db: Database, settings: Settings, role: UserRole) -> dict[str, str]:
+    async with db.session() as session:
+        user = User(
+            email=f"{role.value}@example.com",
+            password_hash=hash_password("integration-pass"),
+            role=role,
+            country_code="DE",
+        )
+        session.add(user)
+        await session.commit()
+    token = create_token(user.id, role.value, "access", settings.auth)
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture
+async def admin_headers(db: Database, settings: Settings) -> dict[str, str]:
+    return await _user_headers(db, settings, UserRole.ADMIN)
+
+
+@pytest.fixture
+async def customer_headers(db: Database, settings: Settings) -> dict[str, str]:
+    return await _user_headers(db, settings, UserRole.CUSTOMER)
