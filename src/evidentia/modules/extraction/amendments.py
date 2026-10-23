@@ -43,6 +43,9 @@ GENERIC_TITLES = frozenset(
 )
 
 
+ENTRY_ATTRIBUTES = ("category", "canonical_name", "amount", "currency", "customer_facing")
+
+
 class FieldChange(BaseModel):
     path: str
     action: Literal["added", "updated", "removed"]
@@ -210,6 +213,17 @@ def diff_records(old: CoverageRecord, new: CoverageRecord) -> list[FieldChange]:
                 FieldChange(path=f"coverages.{item_id}", action="removed", old=before_entry.title)
             )
         elif before_entry is not None and after_entry is not None:
+            for attribute in ENTRY_ATTRIBUTES:
+                was, now = getattr(before_entry, attribute), getattr(after_entry, attribute)
+                if was != now:
+                    changes.append(
+                        FieldChange(
+                            path=f"coverages.{item_id}.{attribute}",
+                            action="updated",
+                            old=was,
+                            new=now,
+                        )
+                    )
             for field_name in sorted(set(before_entry.fields) | set(after_entry.fields)):
                 a, b = before_entry.fields.get(field_name), after_entry.fields.get(field_name)
                 if not _same(a, b):
