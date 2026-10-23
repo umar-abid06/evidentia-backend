@@ -14,6 +14,7 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
 
 from evidentia.ai.factory import build_gateway
+from evidentia.ai.source import StaticGatewaySource
 from evidentia.core.config import DatabaseSettings, Settings
 from evidentia.core.security import create_token, hash_password
 from evidentia.db.registry import load_models
@@ -56,7 +57,7 @@ async def api(
     application.state.db = db
     application.state.redis = _NullRedis()
     application.state.storage = storage
-    application.state.ai = build_gateway(settings.llm)
+    application.state.ai = StaticGatewaySource(build_gateway(settings.llm))
     async with AsyncClient(
         transport=ASGITransport(app=application), base_url="http://test"
     ) as http:

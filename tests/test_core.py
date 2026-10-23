@@ -55,3 +55,19 @@ def test_uuid7_is_time_ordered_and_versioned() -> None:
     first, second = uuid7(), uuid7()
     assert first.version == 7
     assert first.int >> 80 <= second.int >> 80
+
+
+async def test_openapi_mounts_every_module(client: AsyncClient) -> None:
+    response = await client.get("/openapi.json")
+    assert response.status_code == 200
+    paths = response.json()["paths"]
+    for path in (
+        "/api/v1/auth/login",
+        "/api/v1/admin/documents/uploads",
+        "/api/v1/admin/documents/{document_id}/approve",
+        "/api/v1/cards/identify",
+        "/api/v1/assistant/ask",
+        "/api/v1/trips/{trip_id}/health-guide",
+        "/api/v1/admin/prompts/{key}",
+    ):
+        assert path in paths, path
