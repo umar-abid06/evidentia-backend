@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+from contextlib import AsyncExitStack, asynccontextmanager
 
 import httpx
 import structlog
@@ -12,6 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from redis.asyncio import Redis
 
 from evidentia import __version__
+from evidentia.agents.mcp_server import mount_mcp
 from evidentia.api import health
 from evidentia.api.router import build_api_router
 from evidentia.core.config import Settings, get_settings
@@ -30,30 +31,34 @@ from evidentia.modules.notifications.hub import NotificationHub
 log = structlog.get_logger(__name__)
 
 
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    settings: Settings = app.state.settings
+    app.state.db = Database(settings.database)
+    app.state.redis = Redis.from_url(settings.redis.url, decode_responses=True)
+    app.state.storage = build_storage(settings.storage)
+    app.state.ai = CachedGatewaySource(settings)
+    app.state.http = httpx.AsyncClient(timeout=10.0)
+    app.state.bin_lookup = build_bin_lookup(settings.cards, app.state.http)
+    app.state.notifications = NotificationHub(app.state.redis)
+    set_dispatcher(CeleryDispatcher())
+
+    async with AsyncExitStack() as stack:
+        stack.push_async_callback(app.state.db.dispose)
+        stack.push_async_callback(app.state.redis.aclose)
+        stack.push_async_callback(app.state.http.aclose)
+        app.state.notifications.start()
+        stack.push_async_callback(app.state.notifications.stop)
+        if app.state.mcp_server is not None:
+            await stack.enter_async_context(app.state.mcp_server.session_manager.run())
+        log.info("startup", environment=settings.environment, version=__version__)
+        yield
+        log.info("shutdown")
+
+
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or get_settings()
     configure_logging(settings.log_level, json_logs=settings.log_json)
-
-    @asynccontextmanager
-    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        app.state.db = Database(settings.database)
-        app.state.redis = Redis.from_url(settings.redis.url, decode_responses=True)
-        app.state.storage = build_storage(settings.storage)
-        app.state.ai = CachedGatewaySource(settings)
-        app.state.http = httpx.AsyncClient(timeout=10.0)
-        app.state.bin_lookup = build_bin_lookup(settings.cards, app.state.http)
-        app.state.notifications = NotificationHub(app.state.redis)
-        app.state.notifications.start()
-        set_dispatcher(CeleryDispatcher())
-        log.info("startup", environment=settings.environment, version=__version__)
-        try:
-            yield
-        finally:
-            await app.state.notifications.stop()
-            await app.state.http.aclose()
-            await app.state.redis.aclose()
-            await app.state.db.dispose()
-            log.info("shutdown")
 
     app = FastAPI(
         title="Evidentia API",
@@ -81,5 +86,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(build_api_router(settings.api_prefix))
     if settings.observability.metrics_enabled:
         app.mount("/metrics", metrics_app())
+    app.state.mcp_server = mount_mcp(app, settings)
     instrument_app(app, settings.observability, environment=settings.environment)
     return app
