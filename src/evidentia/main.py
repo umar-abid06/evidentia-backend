@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
+import httpx
 import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,6 +21,7 @@ from evidentia.core.logging import configure_logging
 from evidentia.core.middleware import RequestContextMiddleware
 from evidentia.core.tasks import CeleryDispatcher, set_dispatcher
 from evidentia.db.session import Database
+from evidentia.integrations.bin_lookup import build_bin_lookup
 from evidentia.integrations.storage import build_storage
 
 log = structlog.get_logger(__name__)
@@ -35,11 +37,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.redis = Redis.from_url(settings.redis.url, decode_responses=True)
         app.state.storage = build_storage(settings.storage)
         app.state.ai = build_gateway(settings.llm)
+        app.state.http = httpx.AsyncClient(timeout=10.0)
+        app.state.bin_lookup = build_bin_lookup(settings.cards, app.state.http)
         set_dispatcher(CeleryDispatcher())
         log.info("startup", environment=settings.environment, version=__version__)
         try:
             yield
         finally:
+            await app.state.http.aclose()
             await app.state.redis.aclose()
             await app.state.db.dispose()
             log.info("shutdown")
