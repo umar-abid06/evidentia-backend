@@ -2,18 +2,29 @@ from __future__ import annotations
 
 import uuid
 
+from evidentia.ai.factory import build_gateway
+from evidentia.ai.prompts import PromptRegistry
 from evidentia.integrations.storage import build_storage
 from evidentia.modules.documents.processing import DocumentProcessor
 from evidentia.modules.documents.text import PdfTextExtractor
+from evidentia.modules.extraction.pipeline import ExtractionPipeline
 from evidentia.workers.celery_app import celery_app
 from evidentia.workers.names import PROCESS_DOCUMENT
 from evidentia.workers.runtime import WorkerContext, run_job
 
 
 async def _process(ctx: WorkerContext, document_id: uuid.UUID) -> None:
+    settings = ctx.settings
     async with ctx.db.session() as session:
+        pipeline = ExtractionPipeline(
+            build_gateway(settings.llm),
+            PromptRegistry(),
+            chunk_chars=settings.ingestion.reading_chunk_chars,
+            parallelism=settings.llm.max_parallel_calls,
+            confidence_threshold=settings.ingestion.review_confidence_threshold,
+        )
         processor = DocumentProcessor(
-            session, build_storage(ctx.settings.storage), PdfTextExtractor()
+            session, build_storage(settings.storage), PdfTextExtractor(), pipeline
         )
         await processor.run(document_id)
 

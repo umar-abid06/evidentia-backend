@@ -73,6 +73,7 @@ class Document(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     review_reasons: Mapped[list[Any]] = mapped_column(default=list)
     conflicts: Mapped[list[Any]] = mapped_column(default=list)
     error: Mapped[dict[str, Any] | None]
+    report: Mapped[dict[str, Any] | None]
     attempts: Mapped[int] = mapped_column(default=0)
 
     uploaded_by_id: Mapped[uuid.UUID | None] = mapped_column(

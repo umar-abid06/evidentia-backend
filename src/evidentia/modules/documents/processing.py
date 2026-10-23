@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from evidentia.integrations.storage import ObjectStorage
 from evidentia.modules.documents.models import (
     Document,
+    DocumentIntent,
     DocumentPage,
     DocumentStatus,
     ReviewStatus,
@@ -25,6 +26,7 @@ from evidentia.modules.documents.text import (
     UnreadableDocumentError,
     is_scanned,
 )
+from evidentia.modules.extraction.pipeline import ExtractionMode, ExtractionPipeline
 
 log = structlog.get_logger(__name__)
 
@@ -39,11 +41,16 @@ class DocumentRejectedError(Exception):
 
 class DocumentProcessor:
     def __init__(
-        self, session: AsyncSession, storage: ObjectStorage, extractor: TextExtractor
+        self,
+        session: AsyncSession,
+        storage: ObjectStorage,
+        extractor: TextExtractor,
+        pipeline: ExtractionPipeline | None = None,
     ) -> None:
         self.session = session
         self.storage = storage
         self.extractor = extractor
+        self.pipeline = pipeline
 
     async def run(self, document_id: uuid.UUID) -> Document | None:
         document = await self.session.get(Document, document_id)
@@ -107,7 +114,26 @@ class DocumentProcessor:
         return pages
 
     async def analyze(self, document: Document, pages: list[PageText]) -> None:
-        """Extension point for the extraction pipeline."""
+        if self.pipeline is not None:
+            mode: ExtractionMode = (
+                "amendment" if document.intent is DocumentIntent.AMENDMENT else "full"
+            )
+            outcome = await self.pipeline.run(pages, mode=mode, model=document.extraction_model)
+            document.extraction = outcome.record.model_dump(mode="json")
+            document.conflicts = [
+                conflict.model_dump(mode="json") for conflict in outcome.conflicts
+            ]
+            document.review_reasons = [r.model_dump(mode="json") for r in outcome.review_reasons]
+            document.overall_confidence = outcome.overall_confidence
+            document.review_status = (
+                ReviewStatus.NEEDS_REVIEW if outcome.review_reasons else ReviewStatus.PENDING
+            )
+            telemetry = self.pipeline.gateway.telemetry.report(pages=len(pages))
+            document.report = {
+                "mode": mode,
+                **outcome.stats,
+                "telemetry": telemetry.model_dump(mode="json"),
+            }
         document.status = DocumentStatus.COMPLETED
         document.processed_at = datetime.now(UTC)
         await self.session.commit()
