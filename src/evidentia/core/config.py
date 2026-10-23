@@ -89,6 +89,12 @@ class KnowledgeSettings(BaseModel):
     translation_retries: int = 2
 
 
+class CardsSettings(BaseModel):
+    bin_lookup_url: str | None = None
+    bin_lookup_api_key: SecretStr | None = None
+    bin_lookup_timeout_s: float = 5.0
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="EVIDENTIA_",
@@ -113,6 +119,7 @@ class Settings(BaseSettings):
     storage: StorageSettings = Field(default_factory=StorageSettings)
     ingestion: IngestionSettings = Field(default_factory=IngestionSettings)
     knowledge: KnowledgeSettings = Field(default_factory=KnowledgeSettings)
+    cards: CardsSettings = Field(default_factory=CardsSettings)
 
     @model_validator(mode="after")
     def _guard_production_secrets(self) -> Settings:
