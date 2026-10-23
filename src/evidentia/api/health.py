@@ -30,7 +30,14 @@ async def _database_check(request: Request) -> None:
     await request.app.state.db.ping()
 
 
-READINESS_CHECKS: dict[str, ReadinessCheck] = {"database": _database_check}
+async def _redis_check(request: Request) -> None:
+    await request.app.state.redis.ping()
+
+
+READINESS_CHECKS: dict[str, ReadinessCheck] = {
+    "database": _database_check,
+    "redis": _redis_check,
+}
 
 
 @router.get("/healthz", response_model=Liveness)

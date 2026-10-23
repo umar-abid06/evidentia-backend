@@ -8,6 +8,7 @@ from contextlib import asynccontextmanager
 import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from redis.asyncio import Redis
 
 from evidentia import __version__
 from evidentia.api import health
@@ -16,6 +17,7 @@ from evidentia.core.config import Settings, get_settings
 from evidentia.core.errors import register_exception_handlers
 from evidentia.core.logging import configure_logging
 from evidentia.core.middleware import RequestContextMiddleware
+from evidentia.core.tasks import CeleryDispatcher, set_dispatcher
 from evidentia.db.session import Database
 
 log = structlog.get_logger(__name__)
@@ -28,10 +30,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.db = Database(settings.database)
+        app.state.redis = Redis.from_url(settings.redis.url, decode_responses=True)
+        set_dispatcher(CeleryDispatcher())
         log.info("startup", environment=settings.environment, version=__version__)
         try:
             yield
         finally:
+            await app.state.redis.aclose()
             await app.state.db.dispose()
             log.info("shutdown")
 
