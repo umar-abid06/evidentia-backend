@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 ARG PYTHON_VERSION=3.13
 
-FROM ghcr.io/astral-sh/uv:0.13.5 AS uv
+FROM ghcr.io/astral-sh/uv:0.13.6 AS uv
 
 # ---- build: resolve the locked environment -------------------------------------------
 FROM python:${PYTHON_VERSION}-slim AS builder
